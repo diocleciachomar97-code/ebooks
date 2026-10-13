@@ -205,7 +205,19 @@ export function registerWalledRoutes(app, { getVideoForCheckout, getAllVideosFor
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
         await supabase.from('walled_orders').update({ status: 'checkout_error', last_error: `HTTP ${response.status}` }).eq('order_id', order.order_id);
-        console.error('Walled checkout session failed:', response.status);
+        const providerDetail = [
+          typeof result.error === 'string' ? result.error : '',
+          result.error?.code,
+          result.error?.message,
+          result.code,
+          result.message,
+          result.detail,
+        ].filter((value) => typeof value === 'string' && value.trim())
+          .join(' | ').replace(/\s+/g, ' ').slice(0, 500);
+        console.error('Walled checkout session failed:', {
+          status: response.status,
+          detail: providerDetail || 'No error details returned',
+        });
         return sendError(502, 'Walled could not create this checkout. Check the product setup and try again.');
       }
       if (typeof result.checkoutUrl !== 'string' || !/^https:\/\//i.test(result.checkoutUrl) || !result.sessionId) {
